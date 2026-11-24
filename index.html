@@ -77,6 +77,22 @@
   const deck = rows.flatMap(([hiragana, katakana, readings]) =>
     readings.split(' ').map((reading, i) => [hiragana[i], katakana[i], reading])
   );
+  const yoonRows = [
+    ['きゃきゅきょ', 'キャキュキョ', 'kya kyu kyo'],
+    ['ぎゃぎゅぎょ', 'ギャギュギョ', 'gya gyu gyo'],
+    ['しゃしゅしょ', 'シャシュショ', 'sha shu sho'],
+    ['じゃじゅじょ', 'ジャジュジョ', 'ja ju jo'],
+    ['ちゃちゅちょ', 'チャチュチョ', 'cha chu cho'],
+    ['にゃにゅにょ', 'ニャニュニョ', 'nya nyu nyo'],
+    ['ひゃひゅひょ', 'ヒャヒュヒョ', 'hya hyu hyo'],
+    ['びゃびゅびょ', 'ビャビュビョ', 'bya byu byo'],
+    ['ぴゃぴゅぴょ', 'ピャピュピョ', 'pya pyu pyo'],
+    ['みゃみゅみょ', 'ミャミュミョ', 'mya myu myo'],
+    ['りゃりゅりょ', 'リャリュリョ', 'rya ryu ryo'],
+  ];
+  deck.push(...yoonRows.flatMap(([hiragana, katakana, readings]) =>
+    readings.split(' ').map((reading, i) => [hiragana.slice(i * 2, i * 2 + 2), katakana.slice(i * 2, i * 2 + 2), reading])
+  ));
   const readings = [...new Set(deck.map((entry) => entry[2]))];
   // Handwritten forms whose strokes may be joined in system fonts.
   const handwrittenStrokes = {
