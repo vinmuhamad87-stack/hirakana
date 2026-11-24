@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f2f6f3">
+<title>Latihan Kana — Hiragana & Katakana</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f2f6f3; color: #182d26; font: 1rem system-ui, sans-serif; }
+  main { width: min(100%, 46rem); min-height: 100svh; margin: auto; padding: clamp(1rem, 4vw, 2rem); display: grid; align-content: center; gap: 1rem; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+  h1 { margin: 0; font-size: clamp(1.55rem, 5vw, 2.1rem); letter-spacing: -.045em; }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #327cc2; outline-offset: 3px; }
+  .modes { display: flex; gap: .2rem; padding: .25rem; border-radius: .8rem; background: #e2ebe5; }
+  .modes button { padding: .6rem .85rem; border: 0; border-radius: .55rem; background: transparent; color: inherit; }
+  .modes [aria-pressed="true"] { background: #214c3c; color: white; }
+  .scores, .answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+  .scores p { margin: 0; display: flex; justify-content: space-between; gap: .5rem; padding: .65rem .85rem; border-radius: .65rem; background: #e1efe5; color: #21533a; }
+  .scores p + p { background: #f6e8e5; color: #8b372e; }
+  .card { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; min-height: clamp(14rem, 49svh, 29rem); padding: 1rem; border: 1px solid #d5e2db; border-radius: 1.2rem; background: #fff; text-align: center; }
+  .prompt, #feedback { margin: 0; font-weight: 600; }
+  .prompt { color: #52665d; }
+  #kana { display: grid; place-items: center; font-family: "Hiragino Sans", "Yu Gothic", Meiryo, "Noto Sans CJK JP", sans-serif; font-size: clamp(5.5rem, min(25vw, 28svh), 11rem); line-height: 1.25; }
+  #kana svg { width: 1em; height: 1em; }
+  #feedback { min-height: 1.5em; }
+  .correct { color: #22603c; }
+  .incorrect { color: #9b362a; }
+  .answers button { min-height: 3.55rem; padding: .6rem; border: 1px solid #c2d4c8; border-radius: .75rem; background: #fff; color: inherit; font-size: 1.2rem; font-weight: 700; }
+  .answers button[aria-disabled="true"] { cursor: default; }
+  .answers .right { background: #d9f0df; border-color: #538264; }
+  .answers .wrong { background: #fae1db; border-color: #b4675d; }
+  @media (hover: hover) { .answers button:not([aria-disabled="true"]):hover { background: #e2efe6; border-color: #6a9480; } }
+  @media (min-width: 35rem) { .answers { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+</style>
+<main>
+  <header>
+    <h1>Latihan Kana</h1>
+    <div class="modes" role="group" aria-label="Jenis huruf">
+      <button type="button" data-mode="0" aria-pressed="true">Hiragana</button>
+      <button type="button" data-mode="1" aria-pressed="false">Katakana</button>
+    </div>
+  </header>
+  <div class="scores" aria-label="Skor sesi">
+    <p>Benar <strong id="correct">0</strong></p>
+    <p>Salah <strong id="incorrect">0</strong></p>
+  </div>
+  <section class="card" aria-labelledby="prompt">
+    <p class="prompt" id="prompt">Pilih bacaan huruf ini</p>
+    <div id="kana" lang="ja"></div>
+    <p id="feedback" role="status"></p>
+  </section>
+  <div class="answers" role="group" aria-label="Pilihan romaji">
+    <button type="button"></button><button type="button"></button>
+    <button type="button"></button><button type="button"></button>
+  </div>
+</main>
+<script>
+  const rows = [
+    ['あいうえお', 'アイウエオ', 'a i u e o'],
+    ['かきくけこ', 'カキクケコ', 'ka ki ku ke ko'],
+    ['さしすせそ', 'サシスセソ', 'sa shi su se so'],
+    ['たちつてと', 'タチツテト', 'ta chi tsu te to'],
+    ['なにぬねの', 'ナニヌネノ', 'na ni nu ne no'],
+    ['はひふへほ', 'ハヒフヘホ', 'ha hi fu he ho'],
+    ['まみむめも', 'マミムメモ', 'ma mi mu me mo'],
+    ['やゆよ', 'ヤユヨ', 'ya yu yo'],
+    ['らりるれろ', 'ラリルレロ', 'ra ri ru re ro'],
+    ['わゐゑをん', 'ワヰヱヲン', 'wa wi we wo n'],
+    ['がぎぐげご', 'ガギグゲゴ', 'ga gi gu ge go'],
+    ['ざじずぜぞ', 'ザジズゼゾ', 'za ji zu ze zo'],
+    ['だぢづでど', 'ダヂヅデド', 'da ji zu de do'],
+    ['ばびぶべぼ', 'バビブベボ', 'ba bi bu be bo'],
+    ['ぱぴぷぺぽ', 'パピプペポ', 'pa pi pu pe po'],
+    ['ゔ', 'ヴ', 'vu'],
+  ];
+  const deck = rows.flatMap(([hiragana, katakana, readings]) =>
+    readings.split(' ').map((reading, i) => [hiragana[i], katakana[i], reading])
+  );
+  const readings = [...new Set(deck.map((entry) => entry[2]))];
+  // Handwritten forms whose strokes may be joined in system fonts.
+  const handwrittenStrokes = {
+    'き': 'M21 28 Q48 28 73 20 M17 44 Q46 44 77 35 M42 10 Q49 36 66 56 M28 68 C18 82 34 91 63 88',
+    'さ': 'M19 34 Q47 35 76 24 M41 10 Q50 38 68 55 M29 67 C18 81 35 91 64 88',
+    'ら': 'M38 12 Q53 16 64 25 M33 35 Q29 49 28 63 C43 52 56 47 68 52 C86 60 73 83 44 88',
+    'り': 'M33 17 Q26 39 33 57 M65 14 C69 46 65 70 43 89',
+  };
+  const voicedForms = { 'ぎ': 'き', 'ざ': 'さ' };
+  const dakutenStrokes = ' M77 12 Q81 15 84 20 M88 8 Q92 11 95 16';
+  const modes = [...document.querySelectorAll('[data-mode]')];
+  const answers = [...document.querySelectorAll('.answers button')];
+  const kana = document.querySelector('#kana');
+  const feedback = document.querySelector('#feedback');
+  const correctScore = document.querySelector('#correct');
+  const incorrectScore = document.querySelector('#incorrect');
+  let mode = 0;
+  let question;
+  let locked = false;
+  let nextTimer;
+  let audioContext;
+  const scores = [[0, 0], [0, 0]];
+
+  function shuffle(items) {
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
+  function showQuestion() {
+    const pool = deck.filter((entry) => entry !== question);
+    question = pool[Math.floor(Math.random() * pool.length)];
+    const reading = question[2];
+    const distractors = shuffle(readings.filter((item) => item !== reading)).slice(0, 3);
+    const options = shuffle([reading, ...distractors]);
+    const character = question[mode];
+    const voicedBase = voicedForms[character];
+    const strokes = handwrittenStrokes[voicedBase ?? character];
+    if (strokes) {
+      kana.innerHTML = `<svg viewBox="0 0 100 100" role="img" aria-label="${character}">
+        <path d="${strokes}${voicedBase ? dakutenStrokes : ''}" fill="none" stroke="currentColor"
+          stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`;
+    } else {
+      kana.textContent = character;
+    }
+    feedback.textContent = '';
+    feedback.className = '';
+    answers.forEach((button, i) => {
+      button.textContent = options[i];
+      button.className = '';
+      button.removeAttribute('aria-disabled');
+    });
+    locked = false;
+  }
+
+  function showScore() {
+    const [correct, incorrect] = scores[mode];
+    correctScore.textContent = correct;
+    incorrectScore.textContent = incorrect;
+  }
+
+  async function playFeedbackSound(correct) {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    if (!Audio) return;
+    try {
+      audioContext ??= new Audio();
+      if (audioContext.state !== 'running') await audioContext.resume();
+      const start = audioContext.currentTime;
+      const notes = correct ? [523.25, 783.99] : [329.63, 246.94];
+      notes.forEach((frequency, i) => {
+        const time = start + i * 0.12;
+        const tone = audioContext.createOscillator();
+        const volume = audioContext.createGain();
+        tone.frequency.value = frequency;
+        volume.gain.setValueAtTime(0, time);
+        volume.gain.linearRampToValueAtTime(0.10, time + 0.015);
+        volume.gain.linearRampToValueAtTime(0, time + 0.15);
+        tone.connect(volume);
+        volume.connect(audioContext.destination);
+        tone.start(time);
+        tone.stop(time + 0.15);
+      });
+    } catch {
+      // Keep the quiz playable when the browser restricts audio.
+    }
+  }
+
+  answers.forEach((button) => button.addEventListener('click', () => {
+    if (locked) return;
+    locked = true;
+    const reading = question[2];
+    const correct = button.textContent === reading;
+    void playFeedbackSound(correct);
+    scores[mode][correct ? 0 : 1]++;
+    showScore();
+    feedback.className = correct ? 'correct' : 'incorrect';
+    feedback.textContent = correct ? 'Benar!' : 'Salah. Bacaannya: ' + reading;
+    if (!correct) button.classList.add('wrong');
+    answers.forEach((option) => {
+      option.setAttribute('aria-disabled', 'true');
+      if (option.textContent === reading) option.classList.add('right');
+    });
+    nextTimer = setTimeout(showQuestion, correct ? 550 : 1100);
+  }));
+
+  modes.forEach((button, i) => button.addEventListener('click', () => {
+    if (mode === i) return;
+    clearTimeout(nextTimer);
+    mode = i;
+    modes.forEach((option, index) => option.setAttribute('aria-pressed', String(mode === index)));
+    showScore();
+    showQuestion();
+  }));
+
+  showQuestion();
+</script>
+</html>
